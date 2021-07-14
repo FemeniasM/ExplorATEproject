@@ -37,4 +37,4 @@ devtools::install_github("FemeniasM/ExplorATEproject")
 
 ### User guide and vignette
 
-Check the [vignette](./vignettes/vignette_ExplorATE_v1.pdf) and the [user_guide](./user_guide/ExplorATE_userGuide_v1.pdf)
+Check the [vignette](https://femeniasm.github.io/ExplorATE_vignette/) and the [user_guide](https://femeniasm.github.io/ExplorATE_user_guide/)
