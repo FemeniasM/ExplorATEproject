@@ -1,0 +1,17 @@
+Package: ExplorATE
+Title: Explore Active Transposable Elements from RNAseq data
+Version: 0.1
+Authors@R: 
+    person(given = "Martin",
+           family = "Femenias",
+           role = c("aut", "cre"),
+           email = "mmfemenias@gmail.com",
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: This is a workflow for scanning retrotransposons from RNAseq data.
+License: `use_mit_license()`, `use_gpl3_license()` or friends to
+    pick a license
+Encoding: UTF-8
+Imports:
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
