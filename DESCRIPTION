@@ -10,8 +10,24 @@ Authors@R:
 Description: This is a workflow for scanning retrotransposons from RNAseq data.
 License: `use_mit_license()`, `use_gpl3_license()` or friends to
     pick a license
+Depends: 
+    R (>= 4.1.2)
 Encoding: UTF-8
 Imports:
+  DESeq2,
+  GenomicRanges,
+  IRanges,
+  SummarizedExperiment,
+  csaw,
+  doParallel,
+  dplyr,
+  edgeR,
+  foreach,
+  parallel,
+  readr,
+  stringr,
+  tximport,
+  foreach
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2

@@ -7,14 +7,16 @@
 mk.reference(
   RepMask,
   overlapping = F,
-  by = c("namRep", "classRep", "class", "supFam", "Fam"),
-  rule = c(0, 0, 0),
+  by = "classRep",
   trme,
   threads = 1,
-  annot_by = "fragments",
+  annot_by = "transcripts",
+  rule = c(80, 80, 80),
+  best.by = "total_repeat_length",
   bedtools = "bedtools",
   outdir,
   over.res = "HS",
+  custom.lengths = NULL,
   ...
 )
 }
@@ -23,15 +25,20 @@ mk.reference(
 
 \item{overlapping}{Indicates whether the RepMask file contains overlapping repetitions (TRUE) or not (FALSE). When the RepMask file contains overlapping repetitions, the ovlp.res() function will be used to solve them and the resolution criteria must be indicated (higher score (HS), longer length (LE) or lower Kimura distances (LD))}
 
-\item{by}{The column by which the repeats will be classified}
-
-\item{rule}{A numerical vector respectively indicating the minimum percentage of identity, length (in base pairs) of the repeat to be analyzed and the percentage of the length of class/family repeat with respect to the length of the transcript. Example: c(80, 80, 80). Default is c(0,0,0)}
+\item{by}{The column by which the repeats will be classified: 'classRep' (default) or 'namRep'.}
 
 \item{trme}{transcriptome in fasta format}
 
 \item{threads}{Number of cores to use in the processing. By default threads = 1}
 
 \item{annot_by}{A character vector indicating whether the annotations should be made by "transcripts" or by "fragments". When annot_by = "transcripts", the proportion of each transposon class/family in each transcript is calculated and the transcript is annotated with the class/family with the highest coverage.}
+
+\item{rule}{A numerical vector respectively indicating the minimum percentage of identity, the percentage of the length of class/family repeat with respect to the length of the transcript, and the length (in base pairs) of the repeat to be analyzed.
+#The position of the numbers indicates respectively:
+Example: c(80, 60, 100) indicates that those repeats with 80\% identity or more in at least 60\% of the transcript, and are at least 100 bp in length will be annotated as target TEs.  Default is c(80,80,80)}
+
+\item{best.by}{Defines if only the best match of each transcript/sequence id should be returned (by default best.by = NULL which shows all matches for the sequence). The user can choose whether to be based on the longest repeat length ('total_repeat_length') or the highest percent identity ('per_divergence'). The mk.reference() function uses the best.by argument when references are annotated by transcripts (annot_by = 'transcripts')
+A logical vector indicating its only the longest repeats for each transcript is reported. By default best = TRUE}
 
 \item{bedtools}{bedtools binary path}
 
@@ -42,6 +49,8 @@ HS: higher score, bases are assigned to the element with the highest score
 LS: longer element, bases are assigned to the longest element
 LD: lower divergence, bases are assigned to the element with the least divergence.
 in all cases both elements have the same characteristics, the bases are assigned to the first element.}
+
+\item{custom.lengths}{A a numerical vector indicating the lengths for each transcript. By default lengths are calculated from the RepeatMasker file.}
 
 \item{rm.cotrnas}{logical vector indicating whether co-transcribed repeats should be removed}
 
