@@ -3,8 +3,8 @@ title: "ExplorATE vignette"
 author: "Martin Femenias"
 date: "29/12/2021"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
   word_document: default
 ---
 
