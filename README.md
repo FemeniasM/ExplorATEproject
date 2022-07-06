@@ -15,7 +15,6 @@ Flowchart with model organisms
 Flowchart with non-model organisms
 ![alt text](./user_guide/flowchart_nonMO.png)
 
-
 ### Requirements
 
 ExplorATE requires `bedtools` to be installed on your system. If `bedtools` is not installed on your OS, please refer to this [link](https://bedtools.readthedocs.io/en/latest/content/installation.html) and follow the instructions for your OS.
@@ -45,3 +44,6 @@ devtools::install_github("FemeniasM/ExplorATEproject")
 
 Check the [vignette](https://femeniasm.github.io/ExplorATE_vignette/) and the [user_guide](https://femeniasm.github.io/ExplorATE_user_guide/)
 
+## Citation
+
+Please cite [ExplorATE: a new pipeline to explore active transposable elements from RNA-seq data](https://doi.org/10.1093/bioinformatics/btac354), *Bioinformatics*, Volume 38, Issue 13, 2022, Pages 3361–3366.
