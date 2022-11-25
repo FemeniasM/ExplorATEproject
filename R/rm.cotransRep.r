@@ -24,9 +24,9 @@ rm.cotransRep <- function(RepMask,anot,gff3,stranded=T, cleanTEsProt=F, featureS
     namcol <- c("scoreSW", "PersubM","PerBasDel","PerBasIns","namSeq","SPMQuer","EPMQuer","NbasAfEQuer", "st",
                 "namRep","classRep","NbasCompRep","SPMRepdb","EPMRepdb","nu","HSM")
 
-    if(length(RM)!=length(namcol)){stop("missing columns")}
+    if(length(RM)!=length(namcol)){stop(paste("[",Sys.time(),"][ERROR]","missing columns"))}
     err <- namcol[!(colnames(RM)==namcol)]
-    if(length(err)!=0){ stop(paste("The RepeatMasker file must contain the following column names: ", err ))}
+    if(length(err)!=0){ stop(paste("[",Sys.time(),"][ERROR]","The RepeatMasker file must contain the following column names: ", err ))}
 
   }else{RM <- read.RepMask(RepMask)}
   message("Please check if the names of the subclass, superfamilies and/or families are correct:\n")
@@ -55,7 +55,7 @@ rm.cotransRep <- function(RepMask,anot,gff3,stranded=T, cleanTEsProt=F, featureS
       ANOT$originalid <- ANOT$seqid
 
       CDS.withRep <- ANOT[as.character(ANOT$originalid)%in%as.character(RM$namSeq), c("seqid","sseqid", "originalid")]
-      message(length(unique(CDS.withRep$seqid)), " coding genes transcripts contain RTEs repeats: ", round(length(unique(CDS.withRep$seqid))/(length(unique(ANOT$seqid)))*100, 2), "% coding genes transcripts")
+      message(paste("[",Sys.time(),"][INFO]",length(unique(CDS.withRep$seqid)), " coding genes transcripts contain RTEs repeats: ", round(length(unique(CDS.withRep$seqid))/(length(unique(ANOT$seqid)))*100, 2), "% coding genes transcripts"))
       write.csv(CDS.withRep, paste0(outdir, "/cotranscriptRep.csv"), quote = FALSE, row.names = FALSE)
 
 
@@ -108,14 +108,22 @@ rm.cotransRep <- function(RepMask,anot,gff3,stranded=T, cleanTEsProt=F, featureS
           barplot(t(tbl),las=2,beside = T, legend.text = colnames(tbl))
           dev.off()
         }
-        message("Features analysis finished, the results are found in the output directory")
+        message(paste("[",Sys.time(),"][INFO]","Features analysis finished, the results are found in the output directory"))
       }
 
       RM.clean <- RM[RM$namSeq%!in%CDS.withRep$originalid,]
       RM.clean$class <- split.vec(RM.clean$classRep, "/",1)
       RM.clean$supFam <- split.vec(RM.clean$classRep, "/",2)
       RM.clean$Fam <- split.vec(RM.clean$classRep, "/",3)
+
+      if(!(dir.exists(outdir))){
+
+      dir.create(outdir)
+      }
+
+
       write.table(RM.clean, paste0(outdir, "/RM.cotransRepClean.out"), quote = FALSE, row.names = FALSE,sep = "\t")
+
       RM.clean
     }}
 }

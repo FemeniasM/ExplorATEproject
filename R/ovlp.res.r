@@ -1,10 +1,6 @@
-#' @import stringr
-#' @import GenomicRanges
+#' @import data.table
 #' @import IRanges
-#' @import parallel
-#' @import doParallel
-#' @import foreach
-#' @importFrom foreach %dopar%
+#' @importFrom data.table :=
 #' @title Overlappings resolution
 #' @description This function resolves overlapping repeats assigned to the same transcript and returns a data frame of repeats with no overlaps. The user can define the criteria to solve the overlaps, either by higher score (HS), longer length (LE) or lower Kimura's distances (LD).
 #' @param RepMask RepeatMasker output file. If rm.cotrans = F, them you must enter a RepeatMasker output file without co-transcripted repeats.
@@ -27,13 +23,15 @@
 #' @param featureSum Returns statistics related to the characteristics of the transcripts. Requires a gff3 file. If TRUE, returns a list of the
 #' @param outdir Output directory
 #' @param threads Number of cores to use in the processing. By default threads = 1
+#' @param trpt.length A data.frame with two columns: the first column must contain the name of the transcripts, and the second the length corresponding to each transcript. The default is trpt.length=NULL, and the lengths for each transcript are taken from the RepeatMasker file.
 #' @export
-ovlp.res <- function(RepMask,anot,gff3,stranded=T, outdir, rm.cotrans=F, align, threads=1, ignore.aln.pos=T, over.res=c("HS","LS","LD"), ...){
-#removiendo cotranscriptos
-if(rm.cotrans==T){
-message("removing co-transcribed repeats ...")
+ovlp.res <- function(RepMask,anot,gff3,stranded=T, outdir, rm.cotrans=F, trpt.length=NULL, align, threads=1, ignore.aln.pos=T, over.res=c("HS","LS","LD"),
+                       by="classRep", ...){
+  #removiendo cotranscriptos
+  if(rm.cotrans==T){
+    message(paste("[",Sys.time(),"][INFO]","removing co-transcribed repeats ..."))
 
-  RM.clean <- rm.cotransRep(RepMask=RepMask,anot=anot,gff3=gff3,stranded=stranded,outdir=outdir, ...)
+    RM.clean <- rm.cotransRep(RepMask=RepMask,anot=anot,gff3=gff3,stranded=stranded,outdir=outdir, ...)
 
   }else{ #leyendo repeatmasker
     namcol <- c("scoreSW", "PersubM","PerBasDel","PerBasIns","namSeq","SPMQuer","EPMQuer","NbasAfEQuer", "st",
@@ -48,200 +46,125 @@ message("removing co-transcribed repeats ...")
       RM.clean <- RepMask
     }else{
       RM.clean <- read.RepMask(RepMask)
-      }
-
-
-  }
-RM.clean$seqLength <- as.numeric(RM.clean$EPMQuer+as.numeric(gsub("\\(|\\)","",RM.clean$NbasAfEQuer)))
-
-message("making references for overlaps resolution ...")
-  #leyendo el archivo de alineamientos
-
-  if(over.res=="LD"){
-    if(class(align)=="data.frame"){
-      ALN <- align
-      namcol.alin <- c("seqID", "beg", "end","classRep","K2P")
-      if(length(ALN)!=length(namcol.alin)){stop("missing columns in .align file")}
-      err.0 <- namcol[!(colnames(ALN)==namcol.alin)]
-      if(length(err.0)!=0){ stop(paste("The .align file must contain the following column names: ", err ))}
-
-    }else{ALN <- read.alignfile(align)}
-
-    if(class(ALN)!="data.frame"){stop("check .aling file")}
-  }
-
-# Primero verificamos cuales son las repeticiones que tienen solapamientos y luego creamos una tabla con estas repeticiones.
-
-cl <- parallel::makeCluster(threads)
-doParallel::registerDoParallel(cl)
-suppressWarnings(
-RM.ovlp <- foreach::foreach (n=unique(RM.clean$namSeq), .combine = rbind ) %dopar% {
-    RM.ranges <- GenomicRanges::GRanges(n,
-                                      IRanges::IRanges(
-                                        as.numeric(RM.clean$SPMQuer[RM.clean$namSeq==n]),
-                                        as.numeric(RM.clean$EPMQuer[RM.clean$namSeq==n]),
-                                        names = as.character(RM.clean$classRep[RM.clean$namSeq==n])
-                                      ),
-                                      gsub("C", "-",RM.clean$st[RM.clean$namSeq==n]))
-
-  x <- data.frame( IRanges::subsetByOverlaps(RM.ranges[0],RM.ranges[0]) )
-  for(i in 1:length(RM.ranges)){
-
-    df <- data.frame( IRanges::subsetByOverlaps(RM.ranges[i],RM.ranges[-i]) )
-    if(nrow(df)>0){
-      x <- rbind(x,df)
-
     }
 
-  }
-#ahora creamos una tabla RM a la que le agregamos las criterios de seleccion
-    tbl <- RM.clean[1,][-1,]
-  if(over.res=="LD"){tbl$alinrep <- vector()}
-  tbl$width <- vector()
-  for(l in 1:nrow(x)){
-    j <- RM.clean[RM.clean$namSeq==x$seqnames[l] & RM.clean$SPMQuer==x$start[l] & RM.clean$EPMQuer==x$end[l], ]
-    tbl[l,1:19] <- j
-    if(over.res=="LD"){
-      if(ignore.aln.pos==T){
-        tbl$alinrep[l] <- mean(ALN$K2P[ALN$seqID==as.character(x$seqnames[l]) & ALN$classRep==as.character(j$classRep[l])], na.rm = T)
-      }else{
-        tbl$alinrep[l] <- ALN[ALN$seqID==as.character(x$seqnames[l]) & ALN$classRep==as.character(j$classRep) & ALN$beg==x$start[l] & ALN$end==x$end[l],]
 
-      }
-    }
-    tbl$width[l] <- as.numeric(x$width[l])
-  }
-  if(!(is.na(tbl$namSeq))){
-  return(tbl)
   }
 
-}
-)
-message("resolving overlaps ...")
-suppressWarnings(
-RM.ovlp.res <- foreach::foreach (n=unique(RM.ovlp$namSeq), .combine = rbind ) %dopar% {
-sbtbl <- RM.ovlp[RM.ovlp$namSeq==n,]
-  for(i in 1:(nrow(sbtbl)-1)){
-    if(is.na(sbtbl$SPMQuer[i]) | is.na(sbtbl$SPMQuer[i+1])){
-      next}else{
-        #si esta contenido dentro:
-        if(sbtbl$SPMQuer[i+1]<=sbtbl$SPMQuer[i] & sbtbl$EPMQuer[i+1]>=sbtbl$EPMQuer[i] | sbtbl$SPMQuer[i]<=sbtbl$SPMQuer[i+1] & sbtbl$EPMQuer[i]>=sbtbl$EPMQuer[i+1]){
-          if(sbtbl$SPMQuer[i]<=sbtbl$SPMQuer[i+1] & sbtbl$EPMQuer[i]>=sbtbl$EPMQuer[i+1]){
-            if(over.res=="HS"){
-              if(sbtbl$scoreSW[i]>=sbtbl$scoreSW[i+1]){
-                sbtbl[i+1,] <- NA
-              }else{
-                sbtbl$SPMQuer[i+1] <- sbtbl$SPMQuer[i]
-                sbtbl$EPMQuer[i+1] <- sbtbl$EPMQuer[i]
-                sbtbl[i,] <- NA
-              }}
+message(paste("[",Sys.time(),"][INFO]","making references for overlaps resolution ..."))
+#### Ahora la divergencia de la secuencia se toma desde el archivo RepMask, con el porcentaje de sustituciones
+  # #leyendo el archivo de alineamientos
+  #
+  # if(over.res=="LD"){
+  #   if(class(align)=="data.frame"){
+  #     ALN <- align
+  #     namcol.alin <- c("seqID", "beg", "end","classRep","K2P")
+  #     if(length(ALN)!=length(namcol.alin)){stop("missing columns in .align file")}
+  #     err.0 <- namcol[!(colnames(ALN)==namcol.alin)]
+  #     if(length(err.0)!=0){ stop(paste("The .align file must contain the following column names: ", err ))}
+  #
+  #   }else{ALN <- read.alignfile(align)}
+  #
+  #   if(class(ALN)!="data.frame"){stop("check .aling file")}
+  # }
 
-            if(over.res=="LE"){
-              if(sbtbl$width[i]>=sbtbl$width[i+1]){
-                sbtbl[i+1,] <- NA
-              }else{
-                sbtbl$SPMQuer[i+1] <- sbtbl$SPMQuer[i]
-                sbtbl$EPMQuer[i+1] <- sbtbl$EPMQuer[i]
-                sbtbl[i,] <- NA
-              }}
-            if(over.res=="LD"){
-              if(sbtbl$alinrep[i]<=sbtbl$alinrep[i+1]){
-                sbtbl[i+1,] <- NA
-              }else{
-                sbtbl$SPMQuer[i+1] <- sbtbl$SPMQuer[i]
-                sbtbl$EPMQuer[i+1] <- sbtbl$EPMQuer[i]
-                sbtbl[i,] <- NA
-              }}
-          }else{
+  # Primero verificamos cuales son las repeticiones que tienen solapamientos y luego creamos una tabla con estas repeticiones.
 
-            if(sbtbl$SPMQuer[i+1] <= sbtbl$SPMQuer[i] & sbtbl$EPMQuer[i+1] >= sbtbl$EPMQuer[i]){
-              if(over.res=="HS"){
-                if(sbtbl$scoreSW[i]<=sbtbl$scoreSW[i+1]){
-                  sbtbl[i,] <- NA
-                }else{
-                  sbtbl$SPMQuer[i] <- sbtbl$SPMQuer[i+1]
-                  sbtbl$EPMQuer[i] <- sbtbl$EPMQuer[i+1]
-                  sbtbl[i+1,] <- NA
-                }}
-              if(over.res=="LE"){
-                if(sbtbl$width[i]<=sbtbl$width[i+1]){
-                  sbtbl[i,] <- NA
-                }else{
-                  sbtbl$SPMQuer[i] <- sbtbl$SPMQuer[i+1]
-                  sbtbl$EPMQuer[i] <- sbtbl$EPMQuer[i+1]
-                  sbtbl[i+1,] <- NA
-                }}
-              if(over.res=="LD"){
-                if(sbtbl$alinrep[i]>sbtbl$alinrep[i+1]){
-                  sbtbl[i,] <- NA
-                }else{
-                  sbtbl$SPMQuer[i] <- sbtbl$SPMQuer[i+1]
-                  sbtbl$EPMQuer[i] <- sbtbl$EPMQuer[i+1]
-                  sbtbl[i+1,] <- NA
-                }}
-            }
-          }
-          #Si está solapado parcialmente:
-        }else{
-          if(sbtbl$EPMQuer[i]>=sbtbl$SPMQuer[i+1]){
-            if(sbtbl$classRep[i]==sbtbl$classRep[i+1]){
-              sbtbl$EPMQuer[i] <-sbtbl$EPMQuer[i+1]
-              if(over.res=="HS"){
-                sbtbl$scoreSW[i] <- max(c(sbtbl$scoreSW[i],sbtbl$scoreSW[i+1]))
-              }
-              if(over.res=="LE"){
-                sbtbl$width[i] <- max(c(sbtbl$width[i],sbtbl$width[i+1]))
-              }
-              if(over.res=="LD"){
-                sbtbl$alinrep[i] <- min(c(sbtbl$alinrep[i],sbtbl$alinrep[i+1]))
-              }
-              sbtbl[i+1,] <- NA
-            }else{
-              if(over.res=="HS"){
-                if(sbtbl$scoreSW[i]>=sbtbl$scoreSW[i+1]){
-                  sbtbl$SPMQuer[i+1] <- (sbtbl$EPMQuer[i])+1
-                }else{
-                  sbtbl$EPMQuer[i] <- (sbtbl$SPMQuer[i+1])-1
-                }
-              }
+data.table::setDTthreads(threads = threads)
 
-              if(over.res=="LE"){
-                if(sbtbl$width[i]>=sbtbl$width[i+1]){
-                  sbtbl$SPMQuer[i+1] <- (sbtbl$EPMQuer[i])+1
-                }else{
-                  sbtbl$EPMQuer[i] <- (sbtbl$SPMQuer[i+1])-1
-                }
-              }
+if(by=="namRep"){
 
-              if(over.res=="LD"){
-                if(sbtbl$alinrep[i]<=sbtbl$alinrep[i+1]){
-                  sbtbl$SPMQuer[i+1] <- (sbtbl$EPMQuer[i])+1
-                }else{
-                  sbtbl$EPMQuer[i] <- (sbtbl$SPMQuer[i+1])-1
-                }
-              }
-            }
-          }
-        }
-      }
-  }
-  return(sbtbl[!(is.na(sbtbl$namSeq)),])
-}
-)
-parallel::stopCluster(cl)
-foreach::registerDoSEQ()
+  RM.clean$byRep <- paste0(RM.clean$namRep,"::",RM.clean$classRep)
 
-for(n in 1:nrow(RM.ovlp.res)){
-  RM.ovlp.res$seqLength[n] <- unique(RM.clean$seqLength[RM.clean$namSeq==RM.ovlp.res$namSeq[n]])
+  }else if(by=="classRep"){
+
+    RM.clean$byRep <- RM.clean$classRep
+
+  } else{
+
+    message(paste("[",Sys.time(),"][INFO]","error in 'by' argument: repeats must be defined by 'classRep' or 'namRep'"))
 }
 
-#combinamos los resueltos con los no solapados:
-RM.clean.no_ovlp <- RM.clean[RM.clean$nu%!in%RM.ovlp$nu,]#no solapados
-RM.clean.all <- rbind(RM.clean.no_ovlp,RM.ovlp.res[,colnames(RM.clean.no_ovlp)])
 
-RM.clean.all <- RM.clean.all[order(RM.clean.all$SPMQuer),]
-RM.clean.all <- RM.clean.all[order(RM.clean.all$namSeq),]
-message("overlaps resolution finished ...")
-write.table(RM.clean.all, paste0(outdir, "/RM.withoutOvlp.out"), quote = FALSE, row.names = FALSE,sep = "\t")
-RM.clean.all
+  RM1=RM2=data.table::data.table(RM.clean[,c( "namSeq", "SPMQuer", "EPMQuer", "byRep")])
+
+  data.table::setkey(RM2, namSeq, SPMQuer, EPMQuer)
+
+  RM_ovlp <- data.table::foverlaps(RM1, RM1, type="any", nomatch=NULL)
+
+
+  #incorporando socres para cada repeat
+  scores <- RM.clean[, c("PersubM","scoreSW","namSeq", "SPMQuer", "EPMQuer", "byRep")]
+  scores$score.div <- 100-scores$PersubM
+  scores$score.length <- scores$EPMQuer-scores$SPMQuer
+
+  RM_ovlp_scores <- merge(RM_ovlp, scores, by=c("namSeq","SPMQuer", "EPMQuer","byRep"))
+
+  #resolviendo solapamientos
+
+message(paste("[",Sys.time(),"][INFO]","resolving overlaps"))
+
+RM_ovlp_res <- RM_ovlp_scores[
+  ,IDx := cumsum(data.table::fcoalesce(+(SPMQuer > (data.table::shift(cummax(EPMQuer), type = 'lag') + 1L)), 0L)), by = namSeq][
+    , .(SPMQuer = min(SPMQuer), EPMQuer = max(EPMQuer),
+        byRep = byRep[which.max(ifelse(over.res=="LS", score.length, ifelse(over.res=="LD",score.div,scoreSW)))],
+        ovlp.res.score = max(ifelse(over.res=="LS", score.length, ifelse(over.res=="LD",score.div,scoreSW))),
+    mean.score.div=mean(score.div),
+    mean.scoreSW=mean(scoreSW),
+    rep.length=(max(EPMQuer)-min(SPMQuer))),
+    by = .(namSeq, IDx)][, IDx := NULL]
+RM_ovlp_res <- data.table::data.table(RM_ovlp_res)
+
+if(is.null(trpt.length)){
+  message(paste("[",Sys.time(),"][INFO]","Taking sequence lengths from the RepeatMasker file"))
+  RM.clean$trpt.length <- as.numeric(RM.clean$EPMQuer+as.numeric(gsub("\\(|\\)","",RM.clean$NbasAfEQuer)))
+  trpt.length <- RM.clean[order(RM.clean$namSeq),c("namSeq","trpt.length")]
+  trpt.length <- trpt.length[!(duplicated(trpt.length$namSeq)),]
+  }else{
+  message(paste("[",Sys.time(),"][INFO]","Taking sequence lengths from",trpt.length, "file"))
+  colnames(trpt.length) <- c("namSeq","trpt.length")
+}
+
+#importando longitudes de secuencias
+RM_ovlp_res <- merge(RM_ovlp_res,trpt.length, by="namSeq")
+
+#incorporando las variables de anotacion
+message(paste("[",Sys.time(),"][INFO]","Creating annotation table with non-overlapped repeats"))
+RM_ovlp_res <- RM_ovlp_res[which(RM_ovlp_res$rep.length > 0)][,
+            .(start=SPMQuer,end=EPMQuer,rep.length,
+              total_repeat_length=sum(rep.length),
+              total_transcript_length=trpt.length,
+              ovlp.res.score,per_identity=mean.score.div,mean.scoreSW,
+              perc.rep.trpt=(sum(rep.length)/trpt.length)
+            ),by=c("namSeq","byRep")]
+
+  message(paste("[",Sys.time(),"][INFO]","Overlaps resolution finished ..."))
+  #escribiendo la tabla
+  df <- as.data.frame(RM_ovlp_res)
+
+  if(by=="namRep"){
+
+  df$namRep <- split.vec(df$byRep,"::")
+  df$classRep <- split.vec(df$byRep,"::",2)
+  df$byRep <- NULL
+  df <- df[,c(1:3,11:12,4:10)]
+  }
+
+  if(by=="classRep"){
+
+    df$classRep <- df$byRep
+    df$byRep <- NULL
+      df <- df[,c(1:3,11,4:10)]
+  }
+
+
+  if(!(dir.exists(outdir))){
+
+    dir.create(outdir)
+  }
+
+message(paste("[",Sys.time(),"][INFO]","Overlaps resolution finished: writing files in the output directory..."))
+write.table(df, file=file.path(paste0(outdir,"/RM.withoutOvlp.out")), quote = FALSE, row.names = FALSE,sep = "\t")
+
+  df
 }

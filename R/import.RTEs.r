@@ -1,6 +1,6 @@
 #' @import tximport
 #' @import edgeR
-#' @import SummarizedExperiment
+#' @importFrom SummarizedExperiment SummarizedExperiment
 #' @import csaw
 #' @import DESeq2
 #' @title Loads retrotransposons counts and return a DGEList object for use with edgeR.

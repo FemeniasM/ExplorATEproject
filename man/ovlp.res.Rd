@@ -11,10 +11,12 @@ ovlp.res(
   stranded = T,
   outdir,
   rm.cotrans = F,
+  trpt.length = NULL,
   align,
   threads = 1,
   ignore.aln.pos = T,
   over.res = c("HS", "LS", "LD"),
+  by = "classRep",
   ...
 )
 }
@@ -28,6 +30,8 @@ ovlp.res(
 \item{stranded}{logical vector indicating if the library is strand specific}
 
 \item{outdir}{Output directory}
+
+\item{trpt.length}{A data.frame with two columns: the first column must contain the name of the transcripts, and the second the length corresponding to each transcript. The default is trpt.length=NULL, and the lengths for each transcript are taken from the RepeatMasker file.}
 
 \item{align}{.align file}
 

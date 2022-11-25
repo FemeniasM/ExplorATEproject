@@ -23,10 +23,10 @@ ExplorATE requires some previously installed R packages, select those packages t
 
 ```{r eval=FALSE}
 
-install.packages(c("stringr","foreach","doParallel"))
+install.packages(c("stringr","foreach","doParallel","data.table","seqinr"))
 install.packages(c("BiocManager","devtools")) 
 
-BiocManager::install(c("readr","GenomicRanges", "IRanges","csaw", "edgeR","SummarizedExperiment","DESeq2", "tximport"))
+BiocManager::install(c("readr","GenomicRanges","S4Vectors","IRanges","csaw", "edgeR","SummarizedExperiment","DESeq2", "tximport"))
 
 ```
 
