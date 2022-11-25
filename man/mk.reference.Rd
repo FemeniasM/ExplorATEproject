@@ -6,17 +6,16 @@
 \usage{
 mk.reference(
   RepMask,
-  overlapping = F,
+  overlapping = T,
   by = "classRep",
   trme,
   threads = 1,
   annot_by = "transcripts",
   rule = c(80, 80, 80),
   best.by = "total_repeat_length",
-  bedtools = "bedtools",
   outdir,
   over.res = "HS",
-  custom.lengths = NULL,
+  trpt.length = NULL,
   ...
 )
 }
@@ -40,8 +39,6 @@ Example: c(80, 60, 100) indicates that those repeats with 80\% identity or more 
 \item{best.by}{Defines if only the best match of each transcript/sequence id should be returned (by default best.by = NULL which shows all matches for the sequence). The user can choose whether to be based on the longest repeat length ('total_repeat_length') or the highest percent identity ('per_divergence'). The mk.reference() function uses the best.by argument when references are annotated by transcripts (annot_by = 'transcripts')
 A logical vector indicating its only the longest repeats for each transcript is reported. By default best = TRUE}
 
-\item{bedtools}{bedtools binary path}
-
 \item{outdir}{Output directory}
 
 \item{over.res}{Indicates the method by which the repetition overlap will be resolved.
@@ -50,7 +47,7 @@ LS: longer element, bases are assigned to the longest element
 LD: lower divergence, bases are assigned to the element with the least divergence.
 in all cases both elements have the same characteristics, the bases are assigned to the first element.}
 
-\item{custom.lengths}{A a numerical vector indicating the lengths for each transcript. By default lengths are calculated from the RepeatMasker file.}
+\item{trpt.length}{A data.frame with two columns: the first column must contain the name of the transcripts, and the second the length corresponding to each transcript. The default is trpt.length=NULL, and the lengths for each transcript are taken from the RepeatMasker file.}
 
 \item{rm.cotrnas}{logical vector indicating whether co-transcribed repeats should be removed}
 
